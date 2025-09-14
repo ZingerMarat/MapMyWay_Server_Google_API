@@ -2,29 +2,45 @@ import axios from "axios"
 import { loadMapping } from "../utils/mappingLoader.js"
 import polyline from "@mapbox/polyline"
 import redis from "../utils/redisClient.js"
+import { 
+  createPlace,
+  createPlaceCategory,
+  createCoordinates,
+  createPlacesSearchResult,
+  coordinatesToString
+} from "../models/index.js"
 
 const mapping = loadMapping()
 
 /**
- * Search for nearby places using Google Places API
- * @param {string} location "lat,lng"
- * @param {object} category { type: "museum" } or { type: "restaurant", keyword: "georgian" }
- * @param {number} radius in meters (max 50000)
- * @returns array of places
+ * Search for places near a specified point using Google Places API
+ * @param {string} locationString - Coordinate string in "lat,lng" format
+ * @param {PlaceCategory} category - Place category to search for
+ * @param {number} radius - Search radius in meters (maximum 50000)
+ * @returns {Promise<Place[]>} Array of found places
  */
-export const searchNearbyPlaces = async (location, category, radius) => {
-  const cacheKey = `places:${location}:${category.type}:${category.keyword || ""}:${radius}`
+export const searchNearbyPlaces = async (locationString, category, radius) => {
+  const cacheKey = `places:${locationString}:${category.type}:${category.keyword || ""}:${radius}`
 
-  //check redis cache
+  // Check Redis cache
   const cached = await redis.get(cacheKey)
   if (cached) {
     console.log("⚡ Cache hit:", cacheKey)
-    return JSON.parse(cached)
+    const cachedData = JSON.parse(cached)
+    
+    // Check if cached data has the new structure
+    if (Array.isArray(cachedData) && cachedData.length > 0 && 
+        cachedData[0].coordinates && cachedData[0].coordinates.latitude !== undefined) {
+      return cachedData
+    }
+    
+    // If old format, we need to fetch fresh data
+    console.log("🔄 Cached data in old format, fetching fresh data")
   }
 
-  //req to google api
+  // Request to Google Places API
   const url = new URL("https://maps.googleapis.com/maps/api/place/nearbysearch/json")
-  url.searchParams.set("location", location)
+  url.searchParams.set("location", locationString)
   url.searchParams.set("radius", radius)
   url.searchParams.set("type", category.type)
   if (category.keyword) url.searchParams.set("keyword", category.keyword)
@@ -36,72 +52,140 @@ export const searchNearbyPlaces = async (location, category, radius) => {
     throw new Error(`Places error: ${data.status} ${data.error_message || ""}`)
   }
 
-  const places = data.results.slice(0, 3).map((p) => ({
-    place_id: p.place_id,
-    name: p.name,
-    location: p.geometry?.location,
-    address: p.vicinity,
-    rating: p.rating,
-    price_level: p.price_level,
-    opening_hours: p.opening_hours,
-    types: p.types,
-    // photo_url: p.photos?.[0]
-    //   ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${p.photos[0].photo_reference}&key=`
-    //   : null,
-  }))
+  // Create typed place objects
+  const places = data.results.slice(0, 3).map((placeData) => {
+    const coordinates = createCoordinates(
+      placeData.geometry?.location.lat || 0,
+      placeData.geometry?.location.lng || 0
+    )
 
-  await redis.set(cacheKey, JSON.stringify(places), "EX", 2592000) //30 days
+    const additionalInfo = {
+      rating: placeData.rating,
+      priceLevel: placeData.price_level,
+      openingHours: placeData.opening_hours,
+      types: placeData.types
+    }
+
+    return createPlace(
+      placeData.place_id,
+      placeData.name,
+      coordinates,
+      placeData.vicinity,
+      category,
+      additionalInfo
+    )
+  })
+
+  // Save to Redis
+  await redis.set(cacheKey, JSON.stringify(places), "EX", 2592000)
   console.log("📝 Cache set:", cacheKey)
 
   return places
 }
 
 /**
- * Search for places along the route (polyline)
- * @param {string} polylineStr Polyline from Directions API
- * @param {array} categories [{ type: "museum" }, { type: "restaurant", keyword: "georgian" }]
- * @param {number} radius radius around each point (default 3000 m)
- * @returns array of places
+ * Search for places along a route (polyline)
+ * @param {string} polylineString - Polyline from Directions API
+ * @param {PlaceCategory[]} categories - Array of categories to search for
+ * @param {number} radius - Search radius around each point (default 1000 m)
+ * @returns {Promise<PlacesSearchResult>} Places search result
  */
-export const searchPlacesOnRoute = async (polylineStr, categories, radius = 1000) => {
+export const searchPlacesOnRoute = async (polylineString, categories, radius = 1000) => {
   const categoriesKey = categories.map((c) => c.type + (c.keyword || "")).join("+")
-  const cacheKey = `placesOnRoute:${categoriesKey}:${polylineStr}`
+  const cacheKey = `placesOnRoute:${categoriesKey}:${polylineString}`
 
-  //check redis cache
+  // Check Redis cache
   const cached = await redis.get(cacheKey)
   if (cached) {
     console.log("⚡ Cache hit:", cacheKey)
-    return JSON.parse(cached)
+    const cachedData = JSON.parse(cached)
+    
+    // Check if cached data has the new structure
+    if (cachedData.places && Array.isArray(cachedData.places) && 
+        cachedData.places.length > 0 && cachedData.places[0].coordinates && 
+        cachedData.places[0].coordinates.latitude !== undefined) {
+      return cachedData
+    }
+    
+    // If old format, we need to fetch fresh data
+    console.log("🔄 Cached data in old format, fetching fresh data")
   }
 
-  // Decode the polyline into an array of points
-  const points = polyline.decode(polylineStr) // [[lat, lng], ...]
+  // Decode polyline into array of points
+  const points = polyline.decode(polylineString) // [[lat, lng], ...]
   const totalPoints = points.length
 
   // Calculate step to get approximately 10 points along the route
   const step = Math.max(1, Math.floor(totalPoints / 10))
   const checkpoints = points.filter((_, i) => i % step === 0)
 
-  const results = []
+  const allPlaces = []
 
-  for (const [lat, lng] of checkpoints) {
+  // Search places for each route point and each category
+  for (const [latitude, longitude] of checkpoints) {
+    const locationString = coordinatesToString(createCoordinates(latitude, longitude))
+    
     for (const category of categories) {
-      const nearby = await searchNearbyPlaces(`${lat},${lng}`, category, radius)
-      results.push(...nearby)
+      const nearbyPlaces = await searchNearbyPlaces(locationString, category, radius)
+      allPlaces.push(...nearbyPlaces)
     }
   }
 
   // Remove duplicates by place_id
-  const unique = {}
-  results.forEach((p) => {
-    unique[p.place_id] = p
+  const uniquePlaces = {}
+  allPlaces.forEach((place) => {
+    uniquePlaces[place.placeId] = place
   })
 
-  const finalResults = Object.values(unique)
+  const finalPlaces = Object.values(uniquePlaces)
 
-  // Store in Redis for 30 days
-  await redis.set(cacheKey, JSON.stringify(finalResults), "EX", 2592000) //30 days
+  // Create typed search result
+  const searchResult = createPlacesSearchResult(
+    checkpoints.length,
+    finalPlaces,
+    categories
+  )
+
+  // Save to Redis
+  await redis.set(cacheKey, JSON.stringify(searchResult), "EX", 2592000)
   console.log("📝 Cache set:", cacheKey)
 
-  return finalResults
+  return searchResult
+}
+
+/**
+ * Search for places near coordinates
+ * @param {Coordinates} coordinates - Coordinates to search
+ * @param {PlaceCategory} category - Place category
+ * @param {number} radius - Search radius in meters
+ * @returns {Promise<Place[]>} Array of found places
+ */
+export const searchPlacesNearCoordinates = async (coordinates, category, radius) => {
+  const locationString = coordinatesToString(coordinates)
+  return searchNearbyPlaces(locationString, category, radius)
+}
+
+/**
+ * Search for places by multiple categories at one point
+ * @param {Coordinates} coordinates - Coordinates to search
+ * @param {PlaceCategory[]} categories - Array of categories
+ * @param {number} radius - Search radius in meters
+ * @returns {Promise<Place[]>} Array of found places
+ */
+export const searchPlacesByCategories = async (coordinates, categories, radius) => {
+  const locationString = coordinatesToString(coordinates)
+  const allPlaces = []
+
+  for (const category of categories) {
+    const places = await searchNearbyPlaces(locationString, category, radius)
+    allPlaces.push(...places)
+  }
+
+  // Remove duplicates
+  const uniquePlaces = {}
+  allPlaces.forEach((place) => {
+    uniquePlaces[place.placeId] = place
+  })
+
+  return Object.values(uniquePlaces)
 }
