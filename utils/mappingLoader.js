@@ -11,8 +11,9 @@ export const loadMapping = () => {
  * @param {string} key Category key (e.g. "museum", "vegan")
  * @returns {object|null} Mapping value or null if not found
  */
-export function mapCategory(group, key) {
+
+export const getCategories = (group, keys) => {
   const mapping = loadMapping()
-  if (!mapping[group]) return null
-  return mapping[group][key] || null
+  if (!mapping[group]) return []
+  return keys.map((k) => mapping[group][k]).filter(Boolean)
 }

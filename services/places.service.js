@@ -36,7 +36,7 @@ export const searchNearbyPlaces = async (location, category, radius) => {
     throw new Error(`Places error: ${data.status} ${data.error_message || ""}`)
   }
 
-  const places = data.results.map((p) => ({
+  const places = data.results.slice(0, 3).map((p) => ({
     place_id: p.place_id,
     name: p.name,
     location: p.geometry?.location,
@@ -45,9 +45,9 @@ export const searchNearbyPlaces = async (location, category, radius) => {
     price_level: p.price_level,
     opening_hours: p.opening_hours,
     types: p.types,
-    photo_url: p.photos?.[0]
-      ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${p.photos[0].photo_reference}&key=`
-      : null,
+    // photo_url: p.photos?.[0]
+    //   ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${p.photos[0].photo_reference}&key=`
+    //   : null,
   }))
 
   await redis.set(cacheKey, JSON.stringify(places), "EX", 2592000) //30 days
@@ -63,7 +63,7 @@ export const searchNearbyPlaces = async (location, category, radius) => {
  * @param {number} radius radius around each point (default 3000 m)
  * @returns array of places
  */
-export const searchPlacesOnRoute = async (polylineStr, categories, radius = 3000) => {
+export const searchPlacesOnRoute = async (polylineStr, categories, radius = 1000) => {
   const categoriesKey = categories.map((c) => c.type + (c.keyword || "")).join("+")
   const cacheKey = `placesOnRoute:${categoriesKey}:${polylineStr}`
 

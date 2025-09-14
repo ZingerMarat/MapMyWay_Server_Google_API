@@ -1,0 +1,1 @@
+await redis.flushall()
