@@ -1,0 +1,35 @@
+{
+  "activities": {
+    "museum": { "type": "museum" },
+    "art_gallery": { "type": "art_gallery" },
+    "historical": { "type": "tourist_attraction", "keyword": "historical" },
+    "park": { "type": "park" },
+    "beach": { "type": "tourist_attraction", "keyword": "beach" },
+    "mountain": { "type": "tourist_attraction", "keyword": "mountain" },
+    "shopping": { "type": "shopping_mall" },
+    "market": { "type": "store", "keyword": "market" },
+    "bar": { "type": "bar" },
+    "night_club": { "type": "night_club" },
+    "restaurant": { "type": "restaurant" },
+    "cafe": { "type": "cafe" },
+    "hiking": { "type": "tourist_attraction", "keyword": "hiking trail" },
+    "waterfall": { "type": "tourist_attraction", "keyword": "waterfall" },
+    "zoo": { "type": "zoo" },
+    "aquarium": { "type": "aquarium" },
+    "theater": { "type": "movie_theater" },
+    "stadium": { "type": "stadium" },
+    "spa": { "type": "spa" }
+  },
+  "food": {
+    "vegetarian": { "type": "restaurant", "keyword": "vegetarian" },
+    "vegan": { "type": "restaurant", "keyword": "vegan" },
+    "italian": { "type": "restaurant", "keyword": "italian" },
+    "japanese": { "type": "restaurant", "keyword": "japanese" },
+    "sushi": { "type": "restaurant", "keyword": "sushi" },
+    "georgian": { "type": "restaurant", "keyword": "georgian" },
+    "fast_food": { "type": "restaurant", "keyword": "fast food" },
+    "street_food": { "type": "restaurant", "keyword": "street food" },
+    "cafe": { "type": "cafe" },
+    "bakery": { "type": "bakery" }
+  }
+}
