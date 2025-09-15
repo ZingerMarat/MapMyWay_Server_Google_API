@@ -136,7 +136,33 @@ export const planTripController = async (req, res) => {
       console.error("❌ Gemini send error:", err)
     })
 
-    res.json(geminiPlan ? geminiPlan : "No Gemini plan available")
+    const responseWithGemini = {
+      tripInfo: {
+        origin: tripPlan.origin,
+        destination: tripPlan.destination,
+        travelMode: tripPlan.route.travelMode,
+        searchRadius: tripPlan.searchRadius,
+      },
+      originInfo: {
+        coordinates: {
+          latitude: tripPlan.startLocation.coordinates.latitude,
+          longitude: tripPlan.startLocation.coordinates.longitude,
+        },
+        address: tripPlan.startLocation.formattedAddress,
+        placeId: tripPlan.startLocation.placeId,
+      },
+      destinationInfo: {
+        coordinates: {
+          latitude: tripPlan.endLocation.coordinates.latitude,
+          longitude: tripPlan.endLocation.coordinates.longitude,
+        },
+        address: tripPlan.endLocation.formattedAddress,
+        placeId: tripPlan.endLocation.placeId,
+      },
+      geminiPlan: geminiPlan ? geminiPlan : "No Gemini plan available",
+    }
+
+    res.json(responseWithGemini)
   } catch (err) {
     console.error("❌ Trip planning error:", err)
     res.status(500).json({
