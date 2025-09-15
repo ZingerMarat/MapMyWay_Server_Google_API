@@ -1,148 +1,124 @@
-# MapMyWay Server API
+# 🗺 Trip Planning API
 
-## Overview
-
-MapMyWay Server provides a REST API for trip planning using Google Maps services. It supports geocoding, directions, places search, and trip planning with category preferences. Redis is used for caching to improve performance and reduce API costs.
-
----
-
-## Data Flow
-
-1. **Trip Planning Request**
-
-- User sends a request with origin, destination, travel mode, and preferences (categories).
-
-2. **Geocoding**
-
-- The server geocodes the origin and destination addresses to coordinates (lat/lng).
-- Results are cached in Redis.
-
-3. **Directions**
-
-- The server requests a route (polyline) between the coordinates from Google Directions API.
-- Result is cached in Redis.
-
-4. **Category Mapping**
-
-- User preferences are mapped to Google Places categories using `mapping.json`.
-
-5. **Places Search**
-
-- The route polyline is decoded into checkpoints.
-- For each checkpoint and category, the server searches for nearby places using Google Places API.
-- Results are deduplicated and cached in Redis.
-
-6. **Response**
-
-- The server returns the trip plan: route, places along the route, and summary info.
+An API for automatically planning travel routes between two locations based on user preferences.  
+It uses **Google Directions API**, **Google Places API**, and **Gemini** to generate a multi-day itinerary.
 
 ---
 
-## API Endpoints
+## 📍 Endpoint
 
-### `/api/geocode` (GET)
+```
+POST /api/trip/plantrip
+```
 
-- **Description:** Geocode an address to coordinates.
-- **Query Params:** `address` (string)
-- **Response:** `{ address, coords: { lat, lng } }`
+---
 
-### `/api/directions` (POST)
+## 📥 Request Body
 
-- **Description:** Get directions between two points.
-- **Body:** `{ start: { lat, lng }, end: { lat, lng }, mode: "driving" | "walking" | "bicycling" }`
-- **Response:** `{ distance, duration, polyline, start_location, end_location }`
+**Content-Type:** `application/json`
 
-### `/api/places/onroute` (POST)
+```json
+{
+  "origin": "Tbilisi",
+  "destination": "Batumi",
+  "mode": "driving",
+  "days": 2,
+  "preferences": {
+    "activities": ["museum"],
+    "food": ["fast_food"]
+  }
+}
+```
 
-- **Description:** Find places along a route polyline.
-- **Body:** `{ polyline: string, categories: [ { type, keyword? } ], radius?: number }`
-- **Response:** `{ checkpoints: number, places: [ ... ] }`
+### Fields
 
-### `/api/trip/plan` (POST)
+| Field         | Type   | Required | Description                                                                                         |
+| ------------- | ------ | -------- | --------------------------------------------------------------------------------------------------- |
+| `origin`      | string | ✅       | Starting point (city name, address, or `"lat,lng"` coordinates)                                     |
+| `destination` | string | ✅       | Destination point (city name, address, or `"lat,lng"` coordinates)                                  |
+| `mode`        | string | ❌       | Travel mode: `driving` (default), `walking`, or `bicycling`                                         |
+| `days`        | number | ❌       | Number of days to split the itinerary                                                               |
+| `preferences` | object | ✅       | User preferences. Keys are categories (e.g. `activities`, `food`) and values are arrays of keywords |
 
-- **Description:** Plan a trip with places of interest along the route.
-- **Body:**
-  ```json
-  {
+---
+
+## 📤 Response Body
+
+**Content-Type:** `application/json`
+
+```jsonc
+{
+  "tripInfo": {
     "origin": "Tbilisi",
     "destination": "Batumi",
-    "mode": "driving",
-    "preferences": {
-      "activities": ["museum", "park"],
-      "food": ["vegan", "georgian"]
-    },
-    "radius": 3000
+    "travelMode": "driving",
+    "searchRadius": 3000
+  },
+  "originInfo": {
+    "coordinates": { "latitude": 41.6938026, "longitude": 44.8015168 },
+    "address": "Tbilisi, Georgia",
+    "placeId": "ChIJa2JP5tcMREARo25X4u2E0GE"
+  },
+  "destinationInfo": {
+    "coordinates": { "latitude": 41.6460978, "longitude": 41.64049 },
+    "address": "Batumi, Georgia",
+    "placeId": "ChIJIdKiTjCGZ0ARZ6ku4alTMHo"
+  },
+  "geminiPlan": {
+    "itinerary": [
+      {
+        "day": 1,
+        "categories": [
+          {
+            "category": "museum",
+            "options": [
+              {
+                "placeId": "ChIJb36xY_EMREARu4c5ejmc_hs",
+                "name": "Castle in Old Town",
+                "coordinates": { "latitude": 41.6891795, "longitude": 44.8036152 },
+                "address": "3 Betlemi Rise, Tbilisi",
+                "category": { "type": "museum", "keyword": null },
+                "summary": "Short description about this place",
+                "openingHours": [
+                  {
+                    "open": { "day": 0, "time": "0800" },
+                    "close": { "day": 0, "time": "2200" }
+                  }
+                ],
+                "phone": "+995 555 30 10 60",
+                "website": "http://www.castle.ge/",
+                "url": "https://maps.google.com/?cid=2017221453786220475",
+                "rating": 4.4,
+                "types": ["museum", "tourist_attraction"],
+                "photo": "https://maps.googleapis.com/maps/api/place/photo?maxwidth=1600&photo_reference=..."
+              }
+            ]
+          }
+        ]
+      }
+    ]
   }
-  ```
-- **Response:**
-  ```json
-  {
-   "origin": "Tbilisi",
-   "destination": "Batumi",
-   "start": { "lat": ..., "lng": ... },
-   "end": { "lat": ..., "lng": ... },
-   "polyline": "...",
-   "places": [ ... ]
-  }
-  ```
-
-### `/api/categories` (GET)
-
-- **Description:** Get all available categories from `mapping.json`.
-
-### `/redis/*`
-
-- **Admin endpoints for Redis cache management.**
+}
+```
 
 ---
 
-## Service Descriptions
+## 📘 Place Object Structure (`option`)
 
-### Geocoding Service
-
-- **Input:** Address string.
-- **Output:** `{ lat, lng }`
-- **Description:** Converts an address to coordinates using Google Geocoding API. Uses Redis for caching.
-
-### Directions Service
-
-- **Input:** Start/end coordinates, travel mode.
-- **Output:** Route info (distance, duration, polyline, start/end).
-- **Description:** Gets route info from Google Directions API. Uses Redis for caching.
-
-### Places Service
-
-- **Input:** Location (lat,lng), category, radius.
-- **Output:** Array of places.
-- **Description:** Finds places near a location using Google Places API. Used for both single-point and along-route searches. Uses Redis for caching.
-
-### Planner Service
-
-- **Input:** Origin, destination, mode, preferences, radius.
-- **Output:** Trip plan (route, places, summary).
-- **Description:** Orchestrates geocoding, directions, category mapping, and places search to build a full trip plan.
+| Field          | Type     | Description                                                     |
+| -------------- | -------- | --------------------------------------------------------------- |
+| `placeId`      | string   | Google Place ID                                                 |
+| `name`         | string   | Place name                                                      |
+| `coordinates`  | object   | `{ latitude, longitude }`                                       |
+| `address`      | string   | Full formatted address                                          |
+| `category`     | object   | `{ type, keyword }`                                             |
+| `summary`      | string   | Short description                                               |
+| `openingHours` | array    | Opening hours (periods). Day: `0=Sun ... 6=Sat`, Time: `"HHMM"` |
+| `phone`        | string   | International phone number                                      |
+| `website`      | string   | Website URL                                                     |
+| `url`          | string   | Google Maps URL                                                 |
+| `rating`       | number   | Average rating (0–5)                                            |
+| `types`        | string[] | Place types                                                     |
+| `photo`        | string   | First photo URL                                                 |
 
 ---
-
-## Improvements & Recommendations
-
-- Add input validation and error handling for all endpoints.
-- Add request logging and rate limiting.
-- Expand test coverage.
-- Document all endpoints and data structures.
-- Secure admin endpoints.
-
----
-
-## Setup
-
-1. Install dependencies: `npm install`
-2. Set up `.env` with your Google API key and desired port.
-3. Start Redis server locally.
-4. Run the server: `npm start`
-
----
-
-## License
-
-MIT

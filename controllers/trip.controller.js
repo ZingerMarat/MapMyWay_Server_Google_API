@@ -37,9 +37,6 @@ export const planTripController = async (req, res) => {
       radius || 3000
     )
 
-    // Get trip summary information
-    const tripSummary = getTripSummary(tripPlan)
-
     // Prepare minimal data for Gemini service (startPoint, endPoint, places)
     const minimalForGemini = {
       startPoint: {
