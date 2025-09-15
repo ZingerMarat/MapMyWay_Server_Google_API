@@ -1,4 +1,4 @@
-import { fetchDirectionsLegacy, getRouteDistance, getRouteDuration, getRoutePolyline } from "../services/directions.service.js"
+import { fetchDirectionsLegacy } from "../services/directions.service.js"
 import { createCoordinates } from "../models/index.js"
 
 /**

@@ -124,15 +124,11 @@ export const getRoutePolyline = (route) => {
  * @param {Route} route - Route object
  * @returns {Object} Distance information
  */
-export const getRouteDistance = (route) => {
-  return route.distance
-}
+ 
 
 /**
  * Gets route duration information
  * @param {Route} route - Route object
  * @returns {Object} Duration information
  */
-export const getRouteDuration = (route) => {
-  return route.duration
-}
+ 

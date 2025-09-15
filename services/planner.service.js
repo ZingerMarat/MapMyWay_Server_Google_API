@@ -97,21 +97,7 @@ const mapPreferencesToCategories = (preferences) => {
   return categories
 }
 
-/**
- * Plans a trip with additional parameters
- * @param {Object} tripRequest - Trip planning request
- * @param {string} tripRequest.origin - Start point
- * @param {string} tripRequest.destination - End point
- * @param {string} tripRequest.mode - Travel mode
- * @param {UserPreferences} tripRequest.preferences - User preferences
- * @param {number} tripRequest.radius - Search radius
- * @returns {Promise<TripPlan>} Trip plan
- */
-export const planTripAdvanced = async (tripRequest) => {
-  const { origin, destination, mode, preferences, radius } = tripRequest
-  
-  return planTrip(origin, destination, mode, preferences, radius)
-}
+ 
 
 /**
  * Gets trip summary information
