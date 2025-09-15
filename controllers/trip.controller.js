@@ -1,4 +1,4 @@
-import { planTrip, getTripSummary } from "../services/planner.service.js"
+import { planTrip } from "../services/planner.service.js"
 import { getTripPlanByDays } from "../services/gemini.service.js"
 
 /**
