@@ -15,10 +15,10 @@ app.use(express.json())
 app.use("/redis", redisRouter)
 
 app.use("/api/trip", tripRouter)
-app.use("/api/geocode", geocodeRouter)
-app.use("/api/directions", directionsRouter)
-app.use("/api/places", placesRouter)
-app.use("/api/categories", categoriesRouter)
+//app.use("/api/geocode", geocodeRouter)
+//app.use("/api/directions", directionsRouter)
+//app.use("/api/places", placesRouter)
+//app.use("/api/categories", categoriesRouter)
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`))

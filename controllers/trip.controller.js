@@ -1,4 +1,4 @@
-import { planTrip, getTripSummary, filterPlacesByCategory } from "../services/planner.service.js"
+import { planTrip, getTripSummary } from "../services/planner.service.js"
 import { getTripPlanByDays } from "../services/gemini.service.js"
 
 /**
@@ -39,39 +39,6 @@ export const planTripController = async (req, res) => {
 
     // Get trip summary information
     const tripSummary = getTripSummary(tripPlan)
-
-    // Prepare minimal data for Gemini service (startPoint, endPoint, places)
-    const minimalForGemini = {
-      startPoint: {
-        name: tripPlan.origin,
-        coordinates: {
-          latitude: tripPlan.startLocation.coordinates.latitude,
-          longitude: tripPlan.startLocation.coordinates.longitude,
-        },
-      },
-      endPoint: {
-        name: tripPlan.destination,
-        coordinates: {
-          latitude: tripPlan.endLocation.coordinates.latitude,
-          longitude: tripPlan.endLocation.coordinates.longitude,
-        },
-      },
-      days: days || 1,
-      places: tripPlan.places.map((p) => ({
-        id: p.placeId,
-        name: p.name,
-        coordinates: {
-          latitude: p.coordinates.latitude,
-          longitude: p.coordinates.longitude,
-        },
-        category: p.category.type,
-      })),
-    }
-
-    // Fire-and-forget send to Gemini; do not block main response
-    const geminiPlan = await getTripPlanByDays(minimalForGemini).catch((err) => {
-      console.error("❌ Gemini send error:", err)
-    })
 
     // Form response with clear variable names
     const response = {
@@ -134,9 +101,40 @@ export const planTripController = async (req, res) => {
         estimatedDistance: tripSummary.distance.text,
         estimatedDuration: tripSummary.duration.text,
       },
-
-      geminiPlan, // Gemini response included here
     }
+
+    // Prepare minimal data for Gemini service (startPoint, endPoint, places)
+    const minimalForGemini = {
+      startPoint: {
+        name: tripPlan.origin,
+        coordinates: {
+          latitude: tripPlan.startLocation.coordinates.latitude,
+          longitude: tripPlan.startLocation.coordinates.longitude,
+        },
+      },
+      endPoint: {
+        name: tripPlan.destination,
+        coordinates: {
+          latitude: tripPlan.endLocation.coordinates.latitude,
+          longitude: tripPlan.endLocation.coordinates.longitude,
+        },
+      },
+      days: days || 1,
+      places: tripPlan.places.map((p) => ({
+        id: p.placeId,
+        name: p.name,
+        coordinates: {
+          latitude: p.coordinates.latitude,
+          longitude: p.coordinates.longitude,
+        },
+        category: p.category.type,
+      })),
+    }
+
+    // Get Gemini trip plan
+    const geminiPlan = await getTripPlanByDays(minimalForGemini).catch((err) => {
+      console.error("❌ Gemini send error:", err)
+    })
 
     res.json(geminiPlan ? geminiPlan : "No Gemini plan available")
   } catch (err) {
