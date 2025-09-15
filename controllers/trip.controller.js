@@ -84,7 +84,7 @@ export const planTripController = async (req, res) => {
         openingHours: place.openingHours,
         types: place.types
       })),
-      preferences: tripPlan.preferences,
+      // preferences intentionally omitted from response
       summary: {
         totalPlaces: tripSummary.totalPlaces,
         categoriesFound: [...new Set(tripPlan.places.map(p => p.category.type))],

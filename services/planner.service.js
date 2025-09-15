@@ -44,9 +44,15 @@ export const planTrip = async (origin, destination, travelMode, preferences = {}
     const userPreferences = createUserPreferences(preferences)
     const placeCategories = mapPreferencesToCategories(userPreferences)
 
-    // 4. Searching places along the route
-    console.log("🔍 Searching places along route...")
-    const placesSearchResult = await searchPlacesOnRoute(polylineString, placeCategories, searchRadius)
+    // 4. Searching places along the route (only if we have mapped categories)
+    let placesSearchResult
+    if (placeCategories.length > 0) {
+      console.log("🔍 Searching places along route...")
+      placesSearchResult = await searchPlacesOnRoute(polylineString, placeCategories, searchRadius)
+    } else {
+      console.log("ℹ️ No categories mapped from preferences — skipping places search")
+      placesSearchResult = { totalCheckpoints: 0, places: [], searchedCategories: [] }
+    }
 
     // 5. Creating final trip plan
     const tripPlan = createTripPlan(
