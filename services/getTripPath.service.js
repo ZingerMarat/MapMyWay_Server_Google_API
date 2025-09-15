@@ -1,6 +1,6 @@
 import axios from "axios"
 
-export const getFinalTrip = async (origin, destination, waypoints) => {
+export const buildTripPath = async (origin, destination, waypoints) => {
   const url = new URL("https://maps.googleapis.com/maps/api/directions/json")
 
   url.searchParams.set("origin", `${origin.latitude},${origin.longitude}`)

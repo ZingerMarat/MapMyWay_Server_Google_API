@@ -1,6 +1,6 @@
-import { getFinalTrip } from "../services/getFinalTrip.service.js"
+import { buildTripPath } from "../services/getTripPath.service.js"
 
-export const getFinalTripController = async (req, res) => {
+export const getTripPathController = async (req, res) => {
   //     {
   //   "origin": {
   //     "latitude": 41.6938026,
@@ -46,11 +46,11 @@ export const getFinalTripController = async (req, res) => {
     }
 
     // Get final trip plan with daily breakdown
-    const finalTrip = await getFinalTrip(origin, destination, waypoints)
+    const tripPath = await buildTripPath(origin, destination, waypoints)
 
-    return res.status(200).json({ finalTrip })
+    return res.status(200).json({ tripPath })
   } catch (error) {
-    console.error("Error in getFinalTripController:", error)
+    console.error("Error in getTripPathController:", error)
     return res.status(500).json({
       error: "Internal server error",
       code: "INTERNAL_ERROR",

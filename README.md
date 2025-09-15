@@ -122,3 +122,89 @@ POST /api/trip/plantrip
 | `photo`        | string   | First photo URL                                                 |
 
 ---
+
+## 📍 Endpoint
+
+```
+POST /api/tripPath
+```
+
+---
+
+## 📥 Request Body
+
+**Content-Type:** `application/json`
+
+```json
+{
+  "origin": {
+    "latitude": 41.6938026,
+    "longitude": 44.8015168
+  },
+  "destination": {
+    "latitude": 41.6460978,
+    "longitude": 41.64049
+  },
+  "waypoints": [
+    { "latitude": 41.6891795, "longitude": 44.8036152 },
+    { "latitude": 41.705254, "longitude": 44.8007886 },
+    { "latitude": 41.8883858, "longitude": 44.7075655 },
+    { "latitude": 41.8797722, "longitude": 44.7216991 },
+    { "latitude": 41.9894518, "longitude": 44.1122676 },
+    { "latitude": 42.0932766, "longitude": 43.4228238 },
+    { "latitude": 42.1003064, "longitude": 43.0585155 },
+    { "latitude": 42.1139902, "longitude": 43.0311821 },
+    { "latitude": 41.8180646, "longitude": 41.7745763 }
+  ]
+}
+```
+
+### Fields
+
+| Field         | Type   | Required | Description                                       |
+| ------------- | ------ | -------- | ------------------------------------------------- |
+| `origin`      | object | ✅       | Starting coordinates `{ latitude, longitude }`    |
+| `destination` | object | ✅       | Destination coordinates `{ latitude, longitude }` |
+| `waypoints`   | array  | ✅       | Intermediate stops as an array of coordinates     |
+
+---
+
+## 📤 Response Body
+
+**Content-Type:** `application/json`
+
+```jsonc
+{
+  "finalTrip": {
+    "origin": {
+      "latitude": 41.6938026,
+      "longitude": 44.8015168
+    },
+    "destination": {
+      "latitude": 41.6460978,
+      "longitude": 41.64049
+    },
+    "waypoints": [
+      { "latitude": 41.6891795, "longitude": 44.8036152 },
+      { "latitude": 41.705254, "longitude": 44.8007886 },
+      { "latitude": 41.8883858, "longitude": 44.7075655 },
+      { "latitude": 41.8797722, "longitude": 44.7216991 },
+      { "latitude": 41.9894518, "longitude": 44.1122676 },
+      { "latitude": 42.0932766, "longitude": 43.4228238 },
+      { "latitude": 42.1003064, "longitude": 43.0585155 },
+      { "latitude": 42.1139902, "longitude": 43.0311821 },
+      { "latitude": 41.8180646, "longitude": 41.7745763 }
+    ],
+    "overviewPolyline": "_in}FahmpGqGcDxIzEjV..."
+  }
+}
+```
+
+---
+
+## 📘 Notes
+
+- The `overviewPolyline` field is an [encoded polyline](https://developers.google.com/maps/documentation/utilities/polylinealgorithm) that represents the full route path.
+- You can decode it on the client side to display the path on a map (e.g. using `@mapbox/polyline` for JavaScript).
+
+---
