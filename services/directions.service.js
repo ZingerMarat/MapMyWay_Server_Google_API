@@ -1,12 +1,11 @@
 import axios from "axios"
-import redis from "../utils/redisClient.js"
-import { 
+import {
   createRoute,
   createDistanceInfo,
   createDurationInfo,
   createGeocodedAddress,
   createCoordinates,
-  coordinatesToString
+  coordinatesToString,
 } from "../models/index.js"
 
 /**
@@ -21,22 +20,6 @@ export const fetchDirections = async (startLocation, endLocation, travelMode) =>
   const endCoordinatesString = coordinatesToString(endLocation.coordinates)
 
   const cacheKey = `direction:${startCoordinatesString},${endCoordinatesString},${travelMode.toLowerCase()}`
-
-  // Check Redis cache
-  const cached = await redis.get(cacheKey)
-  if (cached) {
-    console.log("⚡ Cache hit:", cacheKey)
-    const cachedData = JSON.parse(cached)
-    
-    // Check if cached data has the new structure
-    if (cachedData.startLocation && cachedData.startLocation.coordinates && 
-        cachedData.startLocation.coordinates.latitude !== undefined) {
-      return cachedData
-    }
-    
-    // If old format, we need to fetch fresh data
-    console.log("🔄 Cached data in old format, fetching fresh data")
-  }
 
   // Request to Google Directions API
   const url = new URL("https://maps.googleapis.com/maps/api/directions/json")
@@ -81,9 +64,7 @@ export const fetchDirections = async (startLocation, endLocation, travelMode) =>
     travelMode
   )
 
-  // Save to Redis
-  await redis.set(cacheKey, JSON.stringify(routeData), "EX", 2592000)
-  console.log("📝 Cache set:", cacheKey)
+  // No caching: always return fresh data
 
   return routeData
 }
@@ -97,15 +78,9 @@ export const fetchDirections = async (startLocation, endLocation, travelMode) =>
  * @deprecated Use fetchDirections with GeocodedAddress objects
  */
 export const fetchDirectionsLegacy = async (start, end, mode) => {
-  const startLocation = createGeocodedAddress(
-    "Unknown",
-    createCoordinates(start.lat, start.lng)
-  )
-  
-  const endLocation = createGeocodedAddress(
-    "Unknown", 
-    createCoordinates(end.lat, end.lng)
-  )
+  const startLocation = createGeocodedAddress("Unknown", createCoordinates(start.lat, start.lng))
+
+  const endLocation = createGeocodedAddress("Unknown", createCoordinates(end.lat, end.lng))
 
   return fetchDirections(startLocation, endLocation, mode)
 }
@@ -124,11 +99,9 @@ export const getRoutePolyline = (route) => {
  * @param {Route} route - Route object
  * @returns {Object} Distance information
  */
- 
 
 /**
  * Gets route duration information
  * @param {Route} route - Route object
  * @returns {Object} Duration information
  */
- 

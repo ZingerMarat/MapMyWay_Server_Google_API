@@ -1,12 +1,9 @@
 import { GoogleGenAI, Type } from "@google/genai"
 
 import dotenv from "dotenv"
-import redis from "../utils/redisClient.js"
 dotenv.config()
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GOOGLE_GEMINI_API_KEY,
-})
+const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_GEMINI_API_KEY })
 
 const model = "gemini-2.0-flash"
 
@@ -58,13 +55,7 @@ const tripPlanConfig = {
 }
 
 export const getTripPlanByDays = async ({ startPoint, endPoint, places, days }) => {
-  // Check Redis for existing plan
-  const cacheKey = `tripPlan:${JSON.stringify({ startPoint, endPoint, places, days })}`
-  const cachedPlan = await redis.get(cacheKey)
-  if (cachedPlan) {
-    console.log("✅ Found cached trip plan")
-    return JSON.parse(cachedPlan)
-  }
+  // No caching - always generate fresh plan
 
   try {
     const prompt = `
@@ -95,9 +86,7 @@ export const getTripPlanByDays = async ({ startPoint, endPoint, places, days }) 
     const answer = JSON.parse(response?.text)
     console.log("✅ GEMINI Trip plan generated:", answer)
 
-    // Cache the plan in Redis for future requests (TTL: 30 days)
-    await redis.set(cacheKey, JSON.stringify(answer), "EX", 2592000)
-    console.log("✅ Trip plan cached in Redis")
+    // No caching - return fresh answer
 
     return answer
   } catch (err) {

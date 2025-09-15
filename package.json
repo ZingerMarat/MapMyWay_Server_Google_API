@@ -17,7 +17,6 @@
     "@mapbox/polyline": "^1.2.1",
     "axios": "^1.12.1",
     "dotenv": "^17.2.2",
-    "express": "^5.1.0",
-    "ioredis": "^5.7.0"
+    "express": "^5.1.0"
   }
 }

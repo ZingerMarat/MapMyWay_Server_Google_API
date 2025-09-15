@@ -1,10 +1,5 @@
 import axios from "axios"
-import redis from "../utils/redisClient.js"
-import { 
-  createGeocodedAddress, 
-  createCoordinates,
-  coordinatesToString 
-} from "../models/index.js"
+import { createGeocodedAddress, createCoordinates, coordinatesToString } from "../models/index.js"
 
 /**
  * Geocodes an address to coordinates using Google Geocoding API
@@ -13,31 +8,6 @@ import {
  */
 export const geocodeAddress = async (address) => {
   const cacheKey = `geocode:${address.toLowerCase()}`
-
-  // Check Redis cache
-  const cached = await redis.get(cacheKey)
-  if (cached) {
-    console.log("⚡ Cache hit:", cacheKey)
-    const cachedData = JSON.parse(cached)
-    
-    // Check if cached data has the new structure
-    if (cachedData.coordinates && cachedData.coordinates.latitude !== undefined) {
-      return cachedData
-    }
-    
-    // Convert old format to new format if needed
-    if (cachedData.lat !== undefined && cachedData.lng !== undefined) {
-      console.log("🔄 Converting cached data to new format")
-      return createGeocodedAddress(
-        address,
-        createCoordinates(cachedData.lat, cachedData.lng),
-        cachedData.formattedAddress || null,
-        cachedData.placeId || null
-      )
-    }
-    
-    return cachedData
-  }
 
   // Request to Google API
   const url = new URL("https://maps.googleapis.com/maps/api/geocode/json")
@@ -52,7 +22,7 @@ export const geocodeAddress = async (address) => {
 
   const result = data.results[0]
   const location = result.geometry.location
-  
+
   // Create typed geocoded address object
   const geocodedAddress = createGeocodedAddress(
     address,
@@ -61,9 +31,7 @@ export const geocodeAddress = async (address) => {
     result.place_id
   )
 
-  // Save to Redis
-  await redis.set(cacheKey, JSON.stringify(geocodedAddress), "EX", 2592000)
-  console.log("📝 Cache set:", cacheKey)
+  // No caching: always return fresh data
 
   return geocodedAddress
 }
@@ -74,7 +42,7 @@ export const geocodeAddress = async (address) => {
  * @returns {Promise<GeocodedAddress[]>} Array of geocoded addresses
  */
 export const geocodeMultipleAddresses = async (addresses) => {
-  const geocodingPromises = addresses.map(address => geocodeAddress(address))
+  const geocodingPromises = addresses.map((address) => geocodeAddress(address))
   return Promise.all(geocodingPromises)
 }
 

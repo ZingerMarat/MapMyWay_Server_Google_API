@@ -1,7 +1,6 @@
 import axios from "axios"
 import { loadMapping } from "../utils/mappingLoader.js"
 import polyline from "@mapbox/polyline"
-import redis from "../utils/redisClient.js"
 import {
   createPlace,
   createPlaceCategory,
@@ -18,12 +17,6 @@ const mapping = loadMapping()
  */
 const fetchPlaceDetails = async (placeId) => {
   const cacheKey = `placeDetails:${placeId}`
-  // Check Redis cache
-  const cached = await redis.get(cacheKey)
-  if (cached) {
-    console.log("⚡ Details cache hit:", placeId)
-    return JSON.parse(cached)
-  }
 
   const url = new URL("https://maps.googleapis.com/maps/api/place/details/json")
   url.searchParams.set("place_id", placeId)
@@ -35,8 +28,7 @@ const fetchPlaceDetails = async (placeId) => {
     throw new Error(`Place Details error: ${data.status} ${data.error_message || ""}`)
   }
 
-  await redis.set(cacheKey, JSON.stringify(data.result), "EX", 2592000)
-  console.log("📝 Details cache set:", placeId)
+  // No caching - always fetch fresh place details
 
   return data.result
 }
@@ -50,26 +42,6 @@ const fetchPlaceDetails = async (placeId) => {
  */
 export const searchNearbyPlaces = async (locationString, category, radius) => {
   const cacheKey = `places:${locationString}:${category.type}:${category.keyword || ""}:${radius}`
-
-  // Check Redis cache
-  const cached = await redis.get(cacheKey)
-  if (cached) {
-    console.log("⚡ Cache hit:", cacheKey)
-    const cachedData = JSON.parse(cached)
-
-    // Check if cached data has the new structure
-    if (
-      Array.isArray(cachedData) &&
-      cachedData.length > 0 &&
-      cachedData[0].coordinates &&
-      cachedData[0].coordinates.latitude !== undefined
-    ) {
-      return cachedData
-    }
-
-    // If old format, we need to fetch fresh data
-    console.log("🔄 Cached data in old format, fetching fresh data")
-  }
 
   // Request to Google Places API
   const url = new URL("https://maps.googleapis.com/maps/api/place/nearbysearch/json")
@@ -119,9 +91,7 @@ export const searchNearbyPlaces = async (locationString, category, radius) => {
     })
   )
 
-  // Save to Redis
-  await redis.set(cacheKey, JSON.stringify(places), "EX", 2592000)
-  console.log("📝 Cache set:", cacheKey)
+  // No caching - always return fresh places
 
   return places
 }
@@ -136,27 +106,6 @@ export const searchNearbyPlaces = async (locationString, category, radius) => {
 export const searchPlacesOnRoute = async (polylineString, categories, radius = 1000) => {
   const categoriesKey = categories.map((c) => c.type + (c.keyword || "")).join("+")
   const cacheKey = `placesOnRoute:${categoriesKey}:${polylineString}`
-
-  // Check Redis cache
-  const cached = await redis.get(cacheKey)
-  if (cached) {
-    console.log("⚡ Cache hit:", cacheKey)
-    const cachedData = JSON.parse(cached)
-
-    // Check if cached data has the new structure
-    if (
-      cachedData.places &&
-      Array.isArray(cachedData.places) &&
-      cachedData.places.length > 0 &&
-      cachedData.places[0].coordinates &&
-      cachedData.places[0].coordinates.latitude !== undefined
-    ) {
-      return cachedData
-    }
-
-    // If old format, we need to fetch fresh data
-    console.log("🔄 Cached data in old format, fetching fresh data")
-  }
 
   // Decode polyline into array of points
   const points = polyline.decode(polylineString) // [[lat, lng], ...]
@@ -189,9 +138,7 @@ export const searchPlacesOnRoute = async (polylineString, categories, radius = 1
   // Create typed search result
   const searchResult = createPlacesSearchResult(checkpoints.length, finalPlaces, categories)
 
-  // Save to Redis
-  await redis.set(cacheKey, JSON.stringify(searchResult), "EX", 2592000)
-  console.log("📝 Cache set:", cacheKey)
+  // No caching - always return fresh search results
 
   return searchResult
 }
